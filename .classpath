@@ -8,6 +8,7 @@
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/opencv">
 		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="C:/Users/mysti/Documents/csc 142/java/honors-module/Cat-Finder/opencv/build/java/x64"/>
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
