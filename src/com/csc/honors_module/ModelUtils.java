@@ -3,6 +3,7 @@ package com.csc.honors_module;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -235,7 +236,7 @@ public class ModelUtils {
     	return Arrays.stream(asArray).collect(Collectors.toCollection(ArrayList::new));
     }
     
-	public static ArrayList<ArrayList<?>> split_into(ArrayList<?> list, int sections) {
+	public static <T> ArrayList<ArrayList<T>> split_into(ArrayList<T> list, int sections) {
 //	    """
 //	    Split an array into multiple sub-arrays as views into `ary`.
 //
@@ -281,11 +282,11 @@ public class ModelUtils {
 		
 		ArrayList<Integer> division_points = cumulative_sum_of(section_sizes).stream().map(i -> Integer.valueOf(i.intValue())).collect(Collectors.toCollection(ArrayList::new));
 		
-		ArrayList<ArrayList<?>> sub_lists = new ArrayList<>();
+		ArrayList<ArrayList<T>> sub_lists = new ArrayList<>();
 		for (int i = 0; i < sections; ++i) {
 			int start = division_points.get(i);
 			int end = division_points.get(i + 1);
-			sub_lists.add(new ArrayList<>(list.subList(start, end)));
+			sub_lists.add(new ArrayList<T>(list.subList(start, end)));
 		}
 		
 		return sub_lists;
@@ -328,8 +329,7 @@ public class ModelUtils {
 		if (range.get() instanceof Integer) {
 			container = (ArrayList<T>) IntStream.range(0, range.get()).boxed().collect(Collectors.toCollection(ArrayList::new));
 		} else
-			container = range.get();
-//		TODO: possibly copy instead
+			container = new ArrayList<T>(range.get());
 		Collections.shuffle(container, state);
 		return container;
 	}
@@ -406,11 +406,12 @@ public class ModelUtils {
 		return false;
 	}
 	
-	public static ArrayList<?> subsection_of(List<?> list, int from, int to) {
+	public static <T> ArrayList<T> subsection_of(List<T> list, int from, int to) {
 		return list.subList(from, to).parallelStream().collect(Collectors.toCollection(ArrayList::new));
 	}
 	
-	public static <T> ArrayList<?>[] allocate(ArrayList<T> list, double percentage_for_training, Either<Random, Integer> state, Boolean shuffle, ArrayList<?> stratified) {
+	@SuppressWarnings("unchecked")
+	public static <T> ArrayList<T>[] allocate(ArrayList<T> list, double percentage_for_training, Either<Random, Integer> state, Boolean shuffle, ArrayList<?> stratified) {
 //		TODO: Range(0, "<=").and(1, ">=").contains(test_size);
 		if (percentage_for_training <= 0 || percentage_for_training >= 1) {
 			throw new 
@@ -426,14 +427,14 @@ public class ModelUtils {
 		}
 		
 		if (shuffle == false) {
-			ArrayList<?>[] splices = new ArrayList[2];
+			ArrayList<T>[] splices = new ArrayList[2];
 			if (exists_and_is_empty(stratified)) {
 				throw new InvalidParameterException("Cannot stratify list if [shuffle == false]");
 			}
 
-			ArrayList<?> training_slice = subsection_of(list, 0, training_portion);
-			ArrayList<?> testing_slice = subsection_of(list, training_portion, training_portion + testing_portion);
-			splices = new ArrayList<?>[] {training_slice, testing_slice};
+			ArrayList<T> training_slice = subsection_of(list, 0, training_portion);
+			ArrayList<T> testing_slice = subsection_of(list, training_portion, training_portion + testing_portion);
+			splices = new ArrayList[] {training_slice, testing_slice};
 			return splices;
 		} else {
 			final int splits = 10;
@@ -462,7 +463,7 @@ public class ModelUtils {
 					throw new InvalidParameterException("The test_size::{%d} should be >= the number of classes::{%d}".formatted(testing_portion, classes.size()));
 				}
 								
-				ArrayList<ArrayList<?>> class_indices = split_into(IntStream.range(0, stratified_indices.length).boxed().collect(Collectors.toCollection(ArrayList::new)), class_counts.length);
+				ArrayList<ArrayList<Integer>> class_indices = split_into(IntStream.range(0, stratified_indices.length).boxed().collect(Collectors.toCollection(ArrayList::new)), class_counts.length);
 				Random rng = check_random_state(state.get());
 				
 				ArrayList<Integer> train = new ArrayList<>(), test = new ArrayList<>();
@@ -475,7 +476,6 @@ public class ModelUtils {
 					for (int i = 0; i < classes.size(); ++i) {
 						ArrayList<Integer> permutation = permutation(Either.create_with(class_counts[i]), rng);
 //							https://github.com/scikit-learn/scikit-learn/blob/364c77e047ca08a95862becf40a04fe9d4cd2c98/sklearn/model_selection/_split.py#L2108
-						@SuppressWarnings("unchecked")
 						int[] permuted_class_indices = take_from_indices((ArrayList<Integer>)class_indices.get(i), permutation, "clip");
 
 						train.addAll(
@@ -509,14 +509,14 @@ public class ModelUtils {
 							 }).toArray(ArrayList[]::new);
 			}		
 			
-			ArrayList<?>[] splices = new ArrayList[2];
+			ArrayList<T>[] splices = new ArrayList[2];
 			Random rng = check_random_state(state.get());
 			for (int __ = 0; __ < splits; ++__) {
-				ArrayList<?> permutation = permutation(Either.create_with(list), rng);
-				ArrayList<?> fortesting = subsection_of(permutation, 0, testing_portion);
-				ArrayList<?> fortraining = subsection_of(permutation, testing_portion, (testing_portion + training_portion));
+				ArrayList<T> permutation = permutation(Either.create_with(list), rng);
+				ArrayList<T> fortesting = subsection_of(permutation, 0, testing_portion);
+				ArrayList<T> fortraining = subsection_of(permutation, testing_portion, (testing_portion + training_portion));
 				if (__ + 1 == splits)
-					splices = new ArrayList<?>[] {fortraining, fortesting};
+					splices = new ArrayList[]{fortraining, fortesting};
 			}
 			return splices;
 //			https://github.com/scikit-learn/scikit-learn/blob/364c77e04/sklearn/model_selection/_split.py#L2586

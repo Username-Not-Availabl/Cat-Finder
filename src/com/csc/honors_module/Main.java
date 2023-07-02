@@ -13,19 +13,13 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.stream.Collector;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -37,14 +31,17 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
-import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import com.csc.honors_module.MathUtils.Activation;
+import com.csc.honors_module.MathUtils.Loss;
+
 
 public class Main extends ClassLoader {
-    public static void main(String[] arguments) throws IOException, InterruptedException {
+    public static void main(String[] arguments) throws IOException, InterruptedException, ClassNotFoundException {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
          
 //        String pathname = "training_media\\archive\\CAT_00\\00000001_000.jpg";
@@ -52,6 +49,8 @@ public class Main extends ClassLoader {
         
 
 //        test_of_allocate();
+//        test_of_forward_propogate_DENSE();
+        test_of_XOR();
         
         System.out.print(true);
 //        Path boundaries = FileSystems.getDefault().getPath(pathname + ".cat", "");
@@ -94,7 +93,13 @@ public class Main extends ClassLoader {
 //        ArrayList<Path> paths = Main.collectImages(aux, Paths.get("training_media"));
 //        ArrayList<BufferedImage> result = Main.normalizeImages(paths);
 //        ---------------------
-        
+
+//        File serialized = new File("");
+//        if (serialized.exists() && serialized.canRead()) {
+//        	ObjectInputStream stream = new ObjectInputStream(new FileInputStream(serialized));
+//        	Model model = (Model) stream.readObject();
+//        }
+//        
 //        ArrayList<BufferedImage> normalized = new ArrayList<BufferedImage>();
 //        
 ////        TODO: make Main.collect images take Stream<Path> so all this work will be done inside
@@ -123,9 +128,140 @@ public class Main extends ClassLoader {
 //        }
 //        
 //        System.out.println(normalized.size());
+//        
+//        Layer[] layers = new Layer[] {
+//				Layer.Input(), //TODO: have input layer be called implicitly
+//				Layer.Convolution2D(),
+//				Layer.dropout(0.5),
+//				Layer.MaxPooling2D(),
+//				Layer.Convolution2D(),
+//				Layer.dropout(0.7),
+//				Layer.MaxPooling2D(),
+//				Layer.Flatten(),
+//				Layer.Dense(),
+//				Layer.dropout(0.7),
+//				Layer.Dense(),
+//				Layer.dropout(0.7),
+//				Layer.Dense()
+//		};
+//        Model model = Model.initiate(layers, Either.create_with(List.of(-1, 1)));
+//        model.compile();
+//        
+//        Either<Random, Integer> state = Either.create_with(42);
+//        ArrayList<?>[] allocated = ModelUtils.allocate(normalized, 0.60, state, true, null);
+//        ArrayList<?> fortraining = allocated[0];
+//        
+//        allocated = ModelUtils.allocate(allocated[1], 0.5, state, true, null);
+//        Object displable = model.fit(fortraining, /*batch_size=*/ 25, /*epochs=*/ 25, /*verbose=*/ 1, /*validation=*/ allocated[1], /*shuffle=*/ true);
+////      TODO: display displayable to show progress
+//        
+//        BufferedImage image = ImageIO.read(new File(pathname));
+//        Position<Float, Float> prediction = model.predict(image);
+//        Debug.printo(prediction);
+//        Main.display(image);
+//        
+//        model.save();
     }
     
-//  (REMOVE:)
+//  (MOVE:) -> [TestSuite]
+    private static void test_of_forward_propogate_DENSE() {
+    }
+    
+    public static String printable(Mat input) {
+    	return input.dump().replace("\n", "");
+    }
+    
+//  (MOVE:) -> [TestSuite]
+    private static Mat[][] XOR_dataset() {
+    	double[][] __input = {
+	    		{0, 0},
+	    		{0, 1},
+	    		{1, 0},
+	    		{1, 1}
+	    };
+	    Mat[] input = {
+	    	new Mat(2, 1, CvType.CV_32FC1),
+	    	new Mat(2, 1, CvType.CV_32FC1),
+	    	new Mat(2, 1, CvType.CV_32FC1),
+	    	new Mat(2, 1, CvType.CV_32FC1)
+	    };
+	    for (int i = 0; i < input.length; i++) {
+			input[i].put(0, 0, __input[i]);
+		}
+	    
+	    double[][] __expectedOutput = {
+	    		{0},
+	    		{1},
+	    		{1},
+	    		{0}
+	    };
+	    Mat[] expectedOutput = {
+		    	new Mat(1, 1, CvType.CV_32FC1),
+		    	new Mat(1, 1, CvType.CV_32FC1),
+		    	new Mat(1, 1, CvType.CV_32FC1),
+		    	new Mat(1, 1, CvType.CV_32FC1)
+		    };
+		    for (int i = 0; i < expectedOutput.length; i++) {
+		    	expectedOutput[i].put(0, 0, __expectedOutput[i]);
+			}
+		return new Mat[][] {input, expectedOutput};
+    }
+    
+//  (MOVE:) -> [TestSuite]
+    private static void test_of_XOR() {
+//    	https://replit.com/@AdimchimmaOdor/nptest
+Boolean DEBUG = true;
+
+		Mat[][] XOR_dataset = Main.XOR_dataset();
+		Mat[] input = XOR_dataset[0];
+		Mat[] expectedOutput = XOR_dataset[1];
+
+	    Layer[] network = {
+	    		Layer.Dense(new int[]{2, 3}, Activation::TANH),
+//	    		Activation.TANH(),
+	    		Layer.Dense(new int[]{3, 1}, Activation::TANH),
+//	    		Activation.TANH()
+	    };
+	    
+	    int epochs = 10000;
+	    double learning_rate = 0.1;
+	    
+	    for (int e = 0; e < epochs; ++e) {
+	    	double error = 0;
+	    	for (int i = 0; i < input.length; ++i) {
+//	    		(forward)
+	    		Mat output = input[i];
+	    		for (int j = 0; j < network.length; ++j) {
+	    			output = network[j].forward_propogate_with(output);
+	    		}
+
+//	    		(error)
+	    		error += Loss.MeanSquaredError.between(expectedOutput[i], output).val[0];
+
+//	    		(backward)
+	    		Mat gradient = Loss.MeanSquaredError.prime(expectedOutput[i], output);
+
+	    		for (int j = network.length - 1; j >= 0; --j) {
+	    			gradient = network[j].backward_propogate_with(gradient, learning_rate);
+	    		}
+	    	}
+	    	error /= input.length;
+	    	Debug.printc("%d/%d, error=%f", e + 1, epochs, error);
+	    }
+	    
+Debug.prints("========================================================================");
+	    for (int i = 0; i < input.length; ++i) {
+	    	Mat output = input[i];
+	    	for (int j = 0; j < network.length; ++j) {
+	    		output = network[j].forward_propogate_with(output);
+	    	}
+	    	Debug.prints(output.dump());
+	    	Debug.prints(expectedOutput[i].dump());
+	    	System.out.println();
+	    }
+	}
+
+//  (MOVE:) -> [TestSuite]
     private static void test_of_allocate() {
         ArrayList<Integer> labels = new ArrayList<>();
         labels.add(2);
