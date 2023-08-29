@@ -396,8 +396,8 @@ public class TestSuite {
 		} catch (IOException exception) { exception.printStackTrace();}
 //		
 		Mat matrix = Main.toMatrix(image);
-//		Imgproc.cvtColor(matrix, matrix, Imgproc.COLOR_BGR2RGB);
-		Imgproc.cvtColor(matrix, matrix, Imgproc.COLOR_BGR2GRAY);
+		Imgproc.cvtColor(matrix, matrix, Imgproc.COLOR_BGR2RGB);
+//		Imgproc.cvtColor(matrix, matrix, Imgproc.COLOR_BGR2GRAY);
 //		Imgproc.resize(matrix, matrix, new Size(256, 256)); // NOTE: increase because actual is -2
 //		
 		MatOfByte buffer = new MatOfByte();
@@ -440,7 +440,13 @@ public class TestSuite {
 //		Debug.printNamed(gradient);
 //		
 		
-//		kernelS
+		int filters = 5;
+		int[] kernelShape = new int[] {5, 5, 1};
+		Debug.print(matrix.channels());
+//		Debug.print(matrix);
+//		matrix.convertTo(matrix, CvType.CV_32F);
+		System.out.println(matrix);
+		Layer.Convolution2D(filters, kernelShape, new int[] {matrix.height(), matrix.width(), 1}, 1, Activation::RELU);
 //		Layer.Convolution2D(new int[]{256, 256, 32}, 3, 3, Activation::RELU);
 		
 
