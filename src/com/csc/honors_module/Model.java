@@ -1,6 +1,5 @@
 package com.csc.honors_module;
 
-import java.awt.image.BufferedImage;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -11,15 +10,18 @@ import java.lang.reflect.Method;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 import com.csc.honors_module.MathUtils.Activation;
 import com.csc.honors_module.MathUtils.Loss;
 import com.csc.honors_module.ModelUtils.Either;
-import com.csc.honors_module.ModelUtils.Position;
 
 public class Model implements Serializable {
 	private static final long serialVersionUID = 3191010016490991315L;
@@ -60,7 +62,7 @@ public class Model implements Serializable {
 //		ReLu, Sigmoid, TANH;
 //	}
 	
-	public static Model initiate(Layer[] network, Either<Range<Double>, ArrayList<Double>> range) {
+	public static Model instantiate(Layer[] network, Either<Range<Double>, ArrayList<Double>> range) {
 		Neuron.setWeightRange(Either.create_with(List.of(-1, 1)));
 		
 		ArrayList<Layer> layers = new ArrayList<>();
@@ -72,7 +74,7 @@ public class Model implements Serializable {
 				if ((function = ((CanHaveActivationFunction)layer).activation()) != Debug.NULL()) {
 					layers.add(function.get());
 				}
-			} catch (ClassCastException exception) {}
+			} catch (ClassCastException | NullPointerException exception) {}
 		}
 		
 //		layers.stream().forEach(System.out::println);
@@ -103,12 +105,20 @@ public class Model implements Serializable {
 		}
 	}
 	
-//	Stochastic gradient descent
-	public static enum Optimizer { GradientDescent, Adam; }
+	public static enum Optimizer { 
+		GradientDescent, 
+		StochasticGradientDescent, 
+		AdaptiveMomentEstimation, 
+		RootMeanSquarePropogation, 
+		MiniBatch, 
+		AdaptiveGradient; 
+	} // maybe should be a class
 	public <T extends Loss> Model compile_with(Optimizer optimizer, Class<T> loss) throws InvalidParameterException {
-		if (optimizer == Optimizer.Adam) {
+//		[NOTE: old]
+		if (optimizer == Optimizer.AdaptiveMomentEstimation) {
 			throw new InvalidParameterException("!(unimplemented): Adaptive moment estimation is not implemented yet!");
 		}
+//		[]
 		
 		this.optimizer = optimizer;
 		this.loss = loss;
@@ -137,6 +147,43 @@ public class Model implements Serializable {
 ////		}
 //	}
 	
+	
+//	private double error = 0;
+	private List<Double> errorCollapse = new ArrayList<>();
+	private List<Double> totalChangeInError = new ArrayList<>();
+	
+	private int index_t = 0;
+	private int index_c = 0;
+	public static int TOTAL_ERROR = 1;
+	public static int COLLAPSE = 2;
+	
+	public void display(int selection) throws InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+
+		if (((1 << TOTAL_ERROR - 1) & selection) == TOTAL_ERROR) {
+			Debug.print("TOTALERROR");
+			Thread t = new Thread(() -> {
+				GUI.DynamicGraph.instantiate_with("Total Error", () -> {
+					return (totalChangeInError.get(index_t++) * 10);
+				});
+			});
+			executor.submit(t);
+		}
+		
+		
+		if (((1 << COLLAPSE - 1) & selection) == COLLAPSE) {
+			Debug.print("COLLAPSE");
+			Thread t = new Thread(() -> {
+				GUI.DynamicGraph.instantiate_with("Error Collapse", () -> {
+					return (errorCollapse.get(index_c++) * 200);
+				});
+			});
+			executor.submit(t);
+		}
+		
+		executor.shutdown();
+	}
+	
 	private double loss(Mat actual, Mat predicted) throws NoSuchMethodException, SecurityException, IllegalAccessException, InvocationTargetException {
 		Method between = this.loss.getMethod("between", Mat.class, Mat.class);
 		return ((Scalar)between.invoke(null, actual, predicted)).val[0];
@@ -154,7 +201,7 @@ public class Model implements Serializable {
 	    this.validation_data_set = validation_data;
 	    this.learning_rate = 0.1;
 	    
-int FAIL = 11;
+//int FAIL = 11;
 	    
 //	    TODO: implement use of batch_size
 //	    You randomly collect a batch of size batch_size samples
@@ -174,12 +221,14 @@ int FAIL = 11;
 //	    		(error)
 				try {
 					error += this.loss(validation_data[i], output);
+//					error += this.loss(validation_data[i], output);
 //					Debug.print(error);
 				} catch (NoSuchMethodException exception) {
 					exception.printStackTrace();
 					error += Loss.MeanSquaredError.between(validation_data[i], output).val[0];
 				} catch (SecurityException | IllegalAccessException | InvocationTargetException exception) {}
 //				error += Loss.BinaryCrossEntropyLoss.between(validation_data[i], output).val[0];
+				this.totalChangeInError.add(error);
 
 
 //if (e == FAIL) {
@@ -195,29 +244,29 @@ int FAIL = 11;
 //	}
 //	break;
 //}
-if (Double.isNaN(error)) {
-	Debug.print(validation_data[i].dump()); 
-	Debug.print(output.dump());
-	try {
-		double a = this.loss(validation_data[i], output);
-		Debug.printSurrounded("a", a);
-	} catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException e1) {
-		// TODO Auto-generated catch block
-		e1.printStackTrace();
-	}
-	FAIL = e;
-	break;
-}
+//if (Double.isNaN(error)) {
+//	Debug.print(validation_data[i].dump()); 
+//	Debug.print(output.dump());
+//	try {
+//		double a = this.loss(validation_data[i], output);
+//		Debug.printSurrounded("a", a);
+//	} catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException e1) {
+//		// TODO Auto-generated catch block
+//		e1.printStackTrace();
+//	}
+//	FAIL = e;
+//	break;
+//}
 //	    		(backward propogation)
 				Mat gradient = new Mat();
 				switch (this.optimizer) {
-					case GradientDescent: {
+					case StochasticGradientDescent: {
 						try {
 							gradient = this.gradient(validation_data[i], output);
 						} catch (NoSuchMethodException exception) {
 							exception.printStackTrace();
 							gradient = Loss.MeanSquaredError.prime(validation_data[i], output);
-						} catch (Exception exception) {};
+						} catch (SecurityException | IllegalAccessException | InvocationTargetException exception) {};
 						break;
 					}
 					case Adam: {
@@ -233,6 +282,7 @@ if (Double.isNaN(error)) {
 	    	}
 //if (e == FAIL) break;
 	    	error /= training_data.length;
+	    	this.errorCollapse.add(error);
 	    	Debug.printc("%d/%d, error=%f", e + 1, epochs, error);
 	    }
 		return null;
@@ -251,7 +301,7 @@ if (Double.isNaN(error)) {
 //		return null;
 //	}
 
-	public Object predict(Mat input) {
+	public Mat predict(Mat input) {
 		System.out.println("=================================================");
 		for (int i = 0; i < this.training_data_set.length; ++i) {
 	    	Mat output = this.training_data_set[i];
@@ -272,6 +322,35 @@ if (Double.isNaN(error)) {
 				stream.writeObject(this);
 			}
 		}
+	}
+
+	public abstract static class Initialization { 
+		protected abstract void implementation(Mat kernel, int[] kernelSize);
+		
+		public static class Xavier extends Initialization {
+			protected void implementation(Mat kernel, int[] kernelSize) {
+				double scale = Math.sqrt(2.0 / (kernelSize[0] * kernelSize[1]));
+				Core.randn(kernel, 0, scale);
+			}
+		}
+
+		public static class GlorotUniform extends Initialization {
+			protected void implementation(Mat kernel, int[] kernelSize) {
+				double range = Math.sqrt(6.0 / (kernelSize[0] + kernelSize[1]));
+				Core.randu(kernel, -range, range);
+				Core.normalize(kernel, kernel, 0, 1, Core.NORM_MINMAX, kernel.type());
+			}
+		}
+
+		public static class Zeroes extends Initialization {
+			protected void implementation(Mat kernel, int[] kernelSize) {
+				kernel = Mat.zeros(kernel.size(), kernel.type());
+			}
+		}
+	}
+	
+	public static void initialize_with(Mat kernel, int[] kernelSize, Initialization initialization) {
+		initialization.implementation(kernel, kernelSize);
 	}
 
 }

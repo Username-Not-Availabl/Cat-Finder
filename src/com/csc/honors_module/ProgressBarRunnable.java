@@ -1,5 +1,10 @@
 package com.csc.honors_module;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+
 public class ProgressBarRunnable implements Runnable {
 
 	private boolean stop = false;
@@ -45,6 +50,36 @@ public class ProgressBarRunnable implements Runnable {
 		this.incrementer = incrementer;
 	}
 	
+	private static int cached_response = -1;
+	public static int extend_width_to_fill_console() throws IOException {
+		if (cached_response != -1) {
+			return cached_response;
+		}
+		
+		String os = System.getProperty("os.name").toLowerCase();
+		String[] command = new String[2];
+		if (os.contains("win")) {
+			command = new String[] {"pwsh", "-Command", "$Host.UI.RawUI.WindowSize.Width"};
+		}
+		
+		if (Arrays.stream(new String[] {"mac", "linux"}).anyMatch(element -> os.contains(element))) {
+//			command = new String[] {"bash", "-c", "tput cols 2> /dev/tty" };
+			command = new String[] {"bash", "tput cols 2> /dev/tty" };
+		}
+		
+		if (command[0] == Debug.NULL()) {
+			throw new IOException("[ERROR]: unfamiliar operating system");
+		}
+		Process process = Runtime.getRuntime().exec(command);
+		BufferedReader std_input = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+		String line = null;
+		while((line = std_input.readLine()) != null) {break;} // Note: should be first line
+
+		process.destroy();
+		return Integer.valueOf(line);
+	}
+	
 //  https://stackoverflow.com/questions/852665/command-line-progress-bar-in-java
 	public synchronized void progressBar(int quotient, int total) {
 //		System.out.printf("quotient:: %d | total:: %d  ", quotient, total);
@@ -52,6 +87,9 @@ public class ProgressBarRunnable implements Runnable {
 			throw new IllegalArgumentException("[ERROR]: quotient cannot be greater than total");
 		
 		int maximum = 50;
+		try {
+			maximum = extend_width_to_fill_console();
+		} catch (IOException e) {};
 		int percentage = (int) (((float)(quotient * maximum)) / (total));
 		
 		char unloaded = '-';

@@ -559,6 +559,11 @@ public class ModelUtils {
 //			TODO: add scalar in a better way
 			return Position.make_position(x.doubleValue() + scalar.doubleValue(), y.doubleValue() + scalar.doubleValue());
 		}
+		
+		public void become(F first, S second) {
+			this.x = (F)first;
+			this.y = (S)second;
+		}
 	}
 	
 //    2D cross product of OA and OB vectors, i.e. z-component of their 3D cross product.

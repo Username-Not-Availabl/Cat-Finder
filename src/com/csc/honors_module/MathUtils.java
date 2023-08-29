@@ -7,11 +7,13 @@ import java.math.BigInteger;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
 
@@ -61,6 +63,12 @@ public class MathUtils {
 		
 		public static double between(Range<Double> range) {
 			return ThreadLocalRandom.current().nextDouble(range.from.get(), range.to.get());
+		}
+		
+		public <T> ArrayList<T> permutation_of(ArrayList<T> list) {
+			ArrayList<T> result = new ArrayList<>(list);
+			Collections.shuffle(result, this);
+			return result;
 		}
 	}
 	
@@ -171,6 +179,47 @@ public class MathUtils {
 			}
 		}
 		public static ReLu RELU() { return new ReLu(); }
+		
+		public static class SoftMax extends Activation {
+			private Mat output;
+
+			@Override
+			public Mat forward_propogate_with(Mat input) {
+				Mat destination = new Mat();
+				Core.exp(input, destination);
+				
+				this.output = new Mat();
+				Core.divide(destination, Core.sumElems(destination), output);
+				return output;
+			}
+
+			@Override
+			public Mat backward_propogate_with(Mat output_gradient, double learning_rate) {
+				int size = 1;
+				for (int i = 0; i < this.output.dims(); ++i) {
+					try {
+						size *= this.output.size(i);
+					} catch(Exception exception) {break;}
+				}
+				
+				Mat identity = Mat.eye(size, size, CvType.CV_32FC1);
+				Core.subtract(identity, this.output.t(), identity);
+				Mat lhs = identity.mul(this.output);
+				
+				return lhs.matMul(output_gradient);
+			}
+
+			@Override
+			protected Mat activation(Mat input) {
+				return forward_propogate_with(input);
+			}
+
+			@Override
+			protected Mat activation_derivative(Mat input) {
+				return backward_propogate_with(input, 0);
+			}
+		}
+		public static SoftMax SoftMax() { return new SoftMax(); }
 	}
 	
 	public static class Loss {

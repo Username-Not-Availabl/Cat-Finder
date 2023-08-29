@@ -1,3 +1,5 @@
 opencv/
 /bin/
 training_media/
+/target/
+src/com/csc/honors_module/GraphPanel.java
