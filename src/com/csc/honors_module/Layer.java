@@ -81,92 +81,12 @@ public abstract class Layer implements Serializable {
 //	convert it to the float[] required for contructor
 	public static Input Input() { return null; }
 	
-//	https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html?highlight=conv2d#torch.nn.Conv2d
-//	https://pytorch.org/docs/stable/generated/torch.ao.nn.quantized.functional.conv2d.html?highlight=conv2d#torch.ao.nn.quantized.functional.conv2d
-//	public static class Convolution2D extends Layer {
-////		https://pytorch.org/docs/stable/_modules/torch/nn/modules/conv.html#Conv2d
-//		private int in_channels;
-//		private ArrayList<Integer> _reversed_padding_repeated_twice; 
-//		private int out_channels;
-//		
-//		private ArrayList<Integer> kernel_size;
-//		private ArrayList<Integer> stride;
-//		private Either<String, ArrayList<Integer>> padding;
-//		private ArrayList<Integer> dilation;
-//		
-//		private Boolean transposed;
-//		
-//		private ArrayList<Integer> output_padding;
-//		private int groups;
-//		private String padding_mode;
-//		
-////		https://pytorch.org/docs/stable/tensors.html#torch.Tensor
-//		private Mat weight;
-//		private Optional<Mat> bias;
-//		
-//		private void complete() {
-//			this.stride = new ArrayList<Integer>();
-//			this.stride.ensureCapacity(1);
-//			
-//			
-//		}
-//		
-//		public Convolution2D() {}
-//		
-//		public Object forward_propogate_with(Object input, Mat weight, Optional<Object> bias) {
-//			Either<String, ArrayList<Integer>> padding = this.padding;
-//			if (this.padding_mode != "zeroes") {
-//				input = padded(input, this._reversed_padding_repeated_twice, padding_mode, 0);
-//				padding = Either.create_with(List.of(0, 0));
-//			}
-//			return convolution(input, weight, bias, this.stride, padding, this.dilation, this.groups);
-//		}
-//
-//		private Object padded(Object input, ArrayList<Integer> _reversed_padding_repeated_twice,
-//				String padding_mode, float fill_value) {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//
-////		https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
-//		private Object convolution(Object input, Mat weight, Optional<Object> bias, ArrayList<Integer> stride,
-//				Either<String, ArrayList<Integer>> padding, ArrayList<Integer> dilation, int groups) {
-//			// TODO Auto-generated method stub
-////			https://github.com/pytorch/pytorch/blob/v1.13.1/aten/src/ATen/native/Convolution.cpp#L804
-////			batchify(input, /*num_spatial_dims*/2, /*func_name*/"conv2d");
-//			
-//			return null;
-//		}
-//
-//		@Override
-//		public Mat forward_propogate_with(Mat input) {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//
-//		@Override
-//		public Mat backward_propogate_with(Mat output_gradient, double learning_rate) {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//	}
 	public static class Convolution2D extends Layer implements CanHaveActivationFunction {
 		
-//		private int depth; 			// [output.depth]
-//		private int input_depth;    // [input.depth]
-		
-//		private int[] input_shape;  // [input.shape]
-//		private int[] output_shape; // [output.shape]
-
 		private int[] kernelShape;
 		
-//		private Mat[][] kernels;
 		private Mat[] kernels;
 		private Mat[] biases;
-//		private Mat biases;
-		
-//		private Mat input;  // [tensor]
-//		private Mat output; // [tensor]
 		
 //		TODO: should be private: 
 //		is only public for debug purposes
@@ -210,41 +130,17 @@ public abstract class Layer implements Serializable {
 			this.input.tensor = input;
 			this.output.tensor = new Mat(this.output.height, this.output.width, CvType.CV_32FC3);
 
-//			Mat output = Imgproc.convertMaps(flattened, flattened, input, flattened, 0);
-//			this.output.tensor = new Mat(output.dimensions, input.type());
 			this.output.tensor = Mat.zeros(output.dimensions, CvType.CV_32F + (8 * (input.channels() - 1 - 1)) );
-//			Debug.printNamed(
-//					input.channels() - 1, CvType.CV_32F + (8 * (input.channels() - 2)), 
-//					this.output.tensor
-//					);
 			
-//			Debug.printNamed(input.channels(), this.output.tensor.channels());
-			
-//			for (int i = 0; i < input.channels(); ++i) {
 			List<Mat> e = new ArrayList<>();
 			for (int i = 0; i < kernels.length; ++i) {
-//				Debug.print(output.tensor.submat(i, i + 2, i, i + 2));
-//				Mat r = new Mat(2, 2, CvType.CV_32F + (8 * (input.channels() - 2)));
 				Mat r = new Mat();
-//				Debug.print(r);
-//				Imgproc.matchTemplate(input, kernels[i], output.tensor.submat(i, i + 1, i, i + 1), Imgproc.TM_CCORR);
-//				Imgproc.matchTemplate(input, kernels[i], output.tensor.row(i), Imgproc.TM_CCORR);
-//				Imgproc.matchTemplate(input, kernels[i], output.tensor, Imgproc.TM_CCORR);
-//				Imgproc.matchTemplate(input, kernels[i], r, Imgproc.TM_CCORR);
-//				Mat submat = input.reshape(1).row(i).reshape(1, new int[]{3, 3});
 				Mat submat = input.reshape(1).row(i).reshape(1, new int[]{this.input.height, this.input.width});
-//				Debug.print(submat.);
 				List<Mat> channels = new ArrayList<>();
 				Core.split(kernels[i], channels);
 				Mat kernel = channels.get(0);
-//				Mat kernel = kernels[i].reshape(1);
-//				Debug.print(kernel);
+
 				Imgproc.matchTemplate(submat, kernel, r, Imgproc.TM_CCORR);
-//				Imgproc.matchTemplate(input.reshape(1).row(i).reshape(1, new int[]{3, 3}), kernels[i], r, Imgproc.TM_CCORR);
-//				Core.add(input.row(i), biases[i], input.row(i));
-//				Debug.printNamed(input.row(i));
-//				Debug.print(r, kernels[i], input);
-//				Debug.print(r);
 				Core.add(r, biases[i], r);
 				e.add(r);
 			}
